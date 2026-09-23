@@ -1,0 +1,14 @@
+{
+  "name": "hokm",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Multiplayer Hokm (حکم) card game - React + Socket.IO",
+  "scripts": {
+    "install": "npm --prefix server install && npm --prefix client install",
+    "build": "npm --prefix client run build",
+    "start": "node server/index.js",
+    "dev:server": "node server/index.js",
+    "dev:client": "npm --prefix client start",
+    "test": "npm --prefix server test"
+  }
+}
