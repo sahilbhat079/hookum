@@ -4,10 +4,11 @@ import Card from './Card';
 import TrumpPicker from './TrumpPicker';
 import { GameOverOverlay, RoundOverOverlay } from './Overlays';
 import { seatOf, isLegalCard, sortHand, SUIT_GLYPH } from '../gameUtils';
+import { announceHakem } from '../hakemAudio';
 
 const OPP_SEATS = ['top', 'left', 'right'];
 
-export default function Table({ state, myId, onError, onLeave }) {
+export default function Table({ state, myId, onError, onLeave, hakemAudioEnabled, onToggleHakemAudio }) {
   const seats = useMemo(() => seatOf(state.players, myId), [state.players, myId]);
   const seatNameById = useMemo(() => ({
     [seats.bottom?.id]: 'bottom',
@@ -20,6 +21,8 @@ export default function Table({ state, myId, onError, onLeave }) {
   const [sweepTo, setSweepTo] = useState(null);
   const pendingTimer = useRef(null);
   const [selectedId, setSelectedId] = useState(null);
+  const [cardOrigins, setCardOrigins] = useState({});
+  const announcedHakem = useRef(null);
 
   useEffect(() => {
     clearTimeout(pendingTimer.current);
@@ -39,23 +42,47 @@ export default function Table({ state, myId, onError, onLeave }) {
 
   useEffect(() => { setSelectedId(null); }, [state.currentPlayerId, state.phase, state.round]);
 
+  useEffect(() => {
+    if (state.phase !== 'trump' || !state.hakemId) return;
+    const announcementId = `${state.round}:${state.hakemId}`;
+    if (announcedHakem.current === announcementId) return;
+    announcedHakem.current = announcementId;
+    if (hakemAudioEnabled) announceHakem(state.players.find((p) => p.id === state.hakemId)?.name);
+  }, [state.phase, state.round, state.hakemId, state.players, hakemAudioEnabled]);
+
+  useEffect(() => {
+    if (!state.trick.length) return;
+    setCardOrigins((origins) => {
+      const activeIds = new Set(state.trick.map(({ card }) => card.id));
+      const kept = Object.fromEntries(Object.entries(origins).filter(([id]) => activeIds.has(id)));
+      return Object.keys(kept).length === Object.keys(origins).length ? origins : kept;
+    });
+  }, [state.trick]);
+
   const myHand = seats.bottom?.hand || [];
   const sortedHand = useMemo(() => sortHand(myHand, state.trump), [myHand, state.trump]);
   const myTurn = state.phase === 'playing' && state.currentPlayerId === myId;
   const winnerId = state.phase === 'trickComplete' ? state.lastTrick?.winnerId : sweepTo;
   const winnerSeat = winnerId ? seatNameById[winnerId] : null;
 
-  const playCard = (card) => {
+  const playCard = (card, origin) => {
+    if (origin) setCardOrigins((origins) => ({ ...origins, [card.id]: origin }));
     socket.emit('playCard', { cardId: card.id }, (res) => !res.ok && onError(res.error));
     setSelectedId(null);
   };
 
-  const onCardClick = (card, legal) => {
+  const onCardClick = (card, legal, event) => {
     if (!legal) {
       onError(state.ledSuit ? `You must follow ${state.ledSuit.charAt(0).toUpperCase()}${state.ledSuit.slice(1)}` : 'That card cannot be played');
       return;
     }
-    if (selectedId === card.id) playCard(card);
+    const cardEl = event?.currentTarget;
+    const rect = cardEl?.getBoundingClientRect();
+    const origin = rect ? {
+      x: `${Math.round(rect.left + rect.width / 2 - window.innerWidth / 2)}px`,
+      y: `${Math.round(rect.top + rect.height / 2 - window.innerHeight * 0.46)}px`,
+    } : null;
+    if (selectedId === card.id) playCard(card, origin);
     else setSelectedId(card.id);
   };
 
@@ -80,6 +107,15 @@ export default function Table({ state, myId, onError, onLeave }) {
           <span className="tricks-hud">tricks {tricks1}–{tricks2}</span>
           <span className="target">first to {state.rules.targetScore}</span>
         </div>
+        <button
+          className="audio-toggle"
+          type="button"
+          aria-pressed={hakemAudioEnabled}
+          onClick={onToggleHakemAudio}
+          title="Toggle Hakem announcement"
+        >
+          {hakemAudioEnabled ? '🔊 Hakem audio' : '🔇 Audio off'}
+        </button>
       </header>
 
       {OPP_SEATS.map((seat) => {
@@ -108,8 +144,15 @@ export default function Table({ state, myId, onError, onLeave }) {
           const seat = seatNameById[t.playerId] || 'bottom';
           const win = t.playerId === winnerId;
           return (
-            <div key={`${t.card.id}-${seat}`} className={`trick-slot ${seat}`}>
-              <Card card={t.card} className={`played fly-from-${seat} ${win ? 'winner-card' : ''}`} />
+          <div key={`${t.card.id}-${seat}`} className={`trick-slot ${seat}`}>
+              <Card
+                card={t.card}
+                className={`played enter-from-${seat} ${win ? 'winner-card' : ''}`}
+                style={cardOrigins[t.card.id] ? {
+                  '--enter-x': cardOrigins[t.card.id].x,
+                  '--enter-y': cardOrigins[t.card.id].y,
+                } : undefined}
+              />
             </div>
           );
         })}
@@ -149,7 +192,7 @@ export default function Table({ state, myId, onError, onLeave }) {
                 playable={legal}
                 className={`in-hand ${isTrump ? 'trump-card' : ''} ${selected ? 'selected' : ''}`}
                 style={{ transform: `rotate(${rot}deg) translateY(${selected ? lift - 18 : lift}px)` }}
-                onClick={() => onCardClick(c, legal)}
+                onClick={(event) => onCardClick(c, legal, event)}
               />
             );
           })}

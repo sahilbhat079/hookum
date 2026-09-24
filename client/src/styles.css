@@ -78,6 +78,7 @@ button.primary:hover:not(:disabled) { background: linear-gradient(180deg, #ffe49
 .score { margin-left: auto; display: flex; gap: 10px; align-items: baseline; font-size: 14px; }
 .score b { font-size: 18px; color: var(--gold); }
 .score .sep, .score .target { opacity: .5; } .score .target { font-size: 11px; }
+.audio-toggle { padding: 5px 9px; font-size: 12px; white-space: nowrap; }
 
 /* ---------- seats ---------- */
 .seat { position: absolute; display: flex; flex-direction: column; align-items: center; gap: 6px; z-index: 10; }
@@ -142,14 +143,18 @@ button.primary:hover:not(:disabled) { background: linear-gradient(180deg, #ffe49
 
 .card.played { position: absolute; width: 64px; height: 90px; }
 .card.played .pip { font-size: 34px; }
-.fly-from-bottom { animation: fly-bottom .38s cubic-bezier(.2,.8,.3,1) both; }
-.fly-from-top    { animation: fly-top .38s cubic-bezier(.2,.8,.3,1) both; }
-.fly-from-left   { animation: fly-left .38s cubic-bezier(.2,.8,.3,1) both; }
-.fly-from-right  { animation: fly-right .38s cubic-bezier(.2,.8,.3,1) both; }
-@keyframes fly-bottom { from { transform: translate(0, 240px) scale(.7); opacity: 0; } to { opacity: 1; } }
-@keyframes fly-top    { from { transform: translate(0, -220px) scale(.7); opacity: 0; } to { opacity: 1; } }
-@keyframes fly-left   { from { transform: translate(-260px, 0) scale(.7); opacity: 0; } to { opacity: 1; } }
-@keyframes fly-right  { from { transform: translate(260px, 0) scale(.7); opacity: 0; } to { opacity: 1; } }
+/* Cards move from their actual clicked position when available. Remote cards
+   use a responsive seat-based origin, so small screens do not overshoot. */
+.card.played { --enter-x: 0px; --enter-y: 38svh; }
+.card.played.enter-from-top { --enter-y: -34svh; }
+.card.played.enter-from-left { --enter-x: -48vw; --enter-y: 2svh; }
+.card.played.enter-from-right { --enter-x: 48vw; --enter-y: 2svh; }
+.card.played { animation: card-to-board .42s cubic-bezier(.18,.82,.28,1) both; }
+@keyframes card-to-board {
+  from { transform: translate(var(--enter-x), var(--enter-y)) scale(.72); opacity: .18; }
+  72% { opacity: 1; }
+  to { transform: translate(0, 0) scale(1); opacity: 1; }
+}
 
 /* trick sweep toward the winner's seat */
 .trick-area.sweep-bottom .trick-slot { animation: sweep-bottom .55s ease-in forwards; }
@@ -236,6 +241,7 @@ button.primary:hover:not(:disabled) { background: linear-gradient(180deg, #ffe49
   .status { bottom: 150px; font-size: 13px; max-width: 90vw; white-space: normal; text-align: center; }
   .seat.left, .seat.right { transform: translateY(-70%) scale(.92); }
   .hud { gap: 8px; padding: 8px 10px; flex-wrap: wrap; }
+  .audio-toggle { margin-left: auto; }
   .logo { font-size: 36px; }
 }
 
@@ -243,6 +249,8 @@ button.primary:hover:not(:disabled) { background: linear-gradient(180deg, #ffe49
   :root { --card-w: 48px; --card-h: 68px; }
   .card.in-hand { margin-left: -18px; }
   .suit-btn { width: 62px; height: 78px; }
+  .audio-toggle { font-size: 0; padding: 6px 8px; }
+  .audio-toggle::first-letter { font-size: 14px; }
   .modal { min-width: 0; width: calc(100vw - 24px); padding: 20px; }
   .seat.left { left: 4px; }
   .seat.right { right: 4px; }
@@ -256,7 +264,7 @@ button.primary:hover:not(:disabled) { background: linear-gradient(180deg, #ffe49
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .phase-fade, .card.played, .fly-from-bottom, .fly-from-top, .fly-from-left, .fly-from-right,
+  .phase-fade, .card.played,
   .trick-area.sweep-bottom .trick-slot, .trick-area.sweep-top .trick-slot,
   .trick-area.sweep-left .trick-slot, .trick-area.sweep-right .trick-slot,
   .overlay, .modal, .trump-badge.set, .status.me {

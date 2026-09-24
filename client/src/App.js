@@ -4,6 +4,7 @@ import Lobby from './components/Lobby';
 import Table from './components/Table';
 
 const SESSION_KEY = 'hokm-session';
+const AUDIO_KEY = 'hokm-hakem-audio';
 
 const loadSession = () => {
   try { return JSON.parse(localStorage.getItem(SESSION_KEY)); } catch { return null; }
@@ -15,6 +16,7 @@ export default function App() {
   const [state, setState] = useState(null);
   const [toast, setToast] = useState(null);
   const [flash, setFlash] = useState(null);
+  const [hakemAudioEnabled, setHakemAudioEnabled] = useState(() => localStorage.getItem(AUDIO_KEY) !== 'off');
 
   useEffect(() => {
     let toastTimer;
@@ -84,17 +86,33 @@ export default function App() {
     setSession(null);
     setState(null);
   }, []);
+  const toggleHakemAudio = useCallback(() => {
+    setHakemAudioEnabled((enabled) => {
+      const next = !enabled;
+      localStorage.setItem(AUDIO_KEY, next ? 'on' : 'off');
+      return next;
+    });
+  }, []);
 
   const inGame = session && state && state.phase !== 'lobby';
 
   return (
     <div className="app">
-      <div key={state?.phase || 'lobby'} className="phase-fade">
+      {/* Keep the table mounted between trick phases so card animations retain
+          their local state; only animate when entering or leaving the game. */}
+      <div key={inGame ? 'game' : 'lobby'} className="phase-fade">
         {!inGame ? (
           <Lobby state={state} session={session} onSession={onSession} onError={onError} onLeave={leave} />
         ) : (
           <>
-            <Table state={state} myId={session.playerId} onError={onError} onLeave={leave} />
+            <Table
+              state={state}
+              myId={session.playerId}
+              onError={onError}
+              onLeave={leave}
+              hakemAudioEnabled={hakemAudioEnabled}
+              onToggleHakemAudio={toggleHakemAudio}
+            />
             <button className="leave" onClick={leave}>Leave</button>
           </>
         )}

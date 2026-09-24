@@ -32,7 +32,7 @@ A card exists in exactly one place: deck, a hand, the current trick, or a comple
 
 ## Deal and hakem
 
-1. First hakem of a match is seat 0.
+1. First hakem of a match is chosen randomly from the four seated players.
 2. Each player is dealt **5 cards** (round-robin).
 3. Hakem chooses trump: hearts, diamonds, clubs, or spades. Trump is then locked for the round.
 4. Remaining cards are dealt until each player has **13** and the deck is empty.

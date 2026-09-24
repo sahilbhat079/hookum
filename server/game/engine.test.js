@@ -20,6 +20,10 @@ function legalId(engine, player) {
   return (follow || player.hand[0]).id;
 }
 
+function hakemId(engine) {
+  return engine.hakemId;
+}
+
 function play(engine, playerId, cardId) {
   const res = engine.playCard(playerId, cardId);
   if (res.ok && engine.phase === 'trickComplete') {
@@ -77,7 +81,7 @@ describe('lobby and dealing', () => {
     const ids = e.players.flatMap((p) => p.hand.map((c) => c.id));
     assert.equal(new Set(ids).size, 20);
 
-    const trump = e.selectTrump('p0', 'hearts');
+    const trump = e.selectTrump(hakemId(e), 'hearts');
     assert.equal(trump.ok, true);
     for (const p of e.players) assert.equal(p.hand.length, 13);
     assert.equal(e.deck.length, 0);
@@ -104,12 +108,14 @@ describe('trump', () => {
     const e = new HokmEngine();
     fillRoom(e);
     e.startGame({ deck: stackedDeck() });
-    assert.equal(e.selectTrump('p1', 'hearts').ok, false);
-    assert.equal(e.selectTrump('p0', 'stars').ok, false);
-    assert.equal(e.selectTrump('p0', 'spades').ok, true);
+    const hakem = hakemId(e);
+    const nonHakem = e.players.find((player) => player.id !== hakem).id;
+    assert.equal(e.selectTrump(nonHakem, 'hearts').ok, false);
+    assert.equal(e.selectTrump(hakem, 'stars').ok, false);
+    assert.equal(e.selectTrump(hakem, 'spades').ok, true);
     assert.equal(e.trump, 'spades');
     assert.equal(e.phase, 'playing');
-    assert.equal(e.selectTrump('p0', 'hearts').ok, false);
+    assert.equal(e.selectTrump(hakem, 'hearts').ok, false);
   });
 });
 
@@ -121,7 +127,7 @@ describe('card play', () => {
     const hakemCard = e.players[0].hand[0].id;
     assert.equal(e.playCard('p0', hakemCard).ok, false);
 
-    e.selectTrump('p0', 'clubs');
+    e.selectTrump(hakemId(e), 'clubs');
     const p0 = e.playerById('p0');
     const p1 = e.playerById('p1');
     assert.equal(e.playCard('p1', p1.hand[0].id).ok, false);
@@ -189,7 +195,7 @@ describe('round and match', () => {
     const e = new HokmEngine();
     fillRoom(e);
     e.startGame({ deck: stackedDeck() });
-    e.selectTrump('p0', 'hearts');
+    e.selectTrump(hakemId(e), 'hearts');
 
     const cards = createDeck();
     for (const p of e.players) p.hand = [];

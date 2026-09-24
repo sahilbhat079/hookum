@@ -140,7 +140,9 @@ class HokmEngine {
       return { ok: false, error: 'All players must be connected before starting' };
     }
     const events = [];
-    this.hakemId = this.playerBySeat(0).id;
+    // The first hakem belongs to a random seated player, not necessarily the
+    // room host. `randomInt` avoids modulo bias when selecting a seat.
+    this.hakemId = this.players[crypto.randomInt(this.players.length)].id;
     const dealt = this.startRound(events, { deck });
     if (dealt && dealt.ok === false) return dealt;
     return { ok: true, events };
